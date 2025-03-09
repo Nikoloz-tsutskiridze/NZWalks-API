@@ -2,7 +2,7 @@
 
 namespace NZWalks.API.Models.DTO
 {
-    public class AddWalkRequestDto
+    public class UpdateWalkReqDto
     {
         [Required]
         [MaxLength(100)]
@@ -13,7 +13,7 @@ namespace NZWalks.API.Models.DTO
         public string Description { get; set; }
 
         [Required]
-        [Range(0,50)]
+        [Range(0, 50)]
         public double LengthInKm { get; set; }
 
         public string? WalkImageUrl { get; set; }
@@ -23,6 +23,5 @@ namespace NZWalks.API.Models.DTO
 
         [Required]
         public Guid RegionId { get; set; }
-
     }
 }
