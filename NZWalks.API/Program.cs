@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NZWalks.API.Data;
@@ -11,21 +12,22 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(options =>
 {
-options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
-{
-    Name = "Authorization",
-    Description = "Enter the Bearer Authorization: `Bearer Generated-JWT-Token`",
-    In = ParameterLocation.Header,
-    Type = SecuritySchemeType.Http,
-    Scheme = "Bearer"
-});
+    options.AddSecurityDefinition(JwtBearerDefaults.AuthenticationScheme, new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "Enter the Bearer Authorization: `Bearer Generated-JWT-Token`",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer"
+    });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
@@ -52,6 +54,7 @@ options.UseSqlServer(builder.Configuration.GetConnectionString("NZWalksAuthConne
 builder.Services.AddScoped<IRegionRepository, SQLRegionRepository>();
 builder.Services.AddScoped<IWalkRepository, SQLWalkRepository>();
 builder.Services.AddScoped<ITokenRepository, TokenRepository>();
+builder.Services.AddScoped<IImageRepository, LocalImageRepository>();
 
 builder.Services.AddAutoMapper(typeof(AutoMapperProfiles));
 
@@ -73,35 +76,41 @@ builder.Services.Configure<IdentityOptions>(options =>
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        AuthenticationType = "Jwt",
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey
-        (Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-    });
+   options.TokenValidationParameters = new TokenValidationParameters
+   {
+       AuthenticationType = "Jwt",
+       ValidateIssuer = true,
+       ValidateAudience = true,
+       ValidateLifetime = true,
+       ValidateIssuerSigningKey = true,
+       ValidIssuer = builder.Configuration["Jwt:Issuer"],
+       //ValidAudience = builder.Configuration["Jwt: Audience"],        
+       ValidAudiences = new[] { builder.Configuration["Jwt:Audience"] },
+       IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+   });
 
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI();
-    }
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")),
+    RequestPath = ""
+});
 
 app.MapControllers();
 
